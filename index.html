@@ -28,10 +28,16 @@
   padding-bottom:env(safe-area-inset-bottom,0px);
 }
 :root[data-pal="verde"]{
-  --bg:#F5F2EA;--surface:#FFFEFA;--surface2:#EBE5D6;--ink:#10302F;--muted:#5B726F;--line:#DFD8C7;
+  --bg:#F2F5EE;--surface:#FFFFFF;--surface2:#E6EDE3;--ink:#10302F;--muted:#58716C;--line:#D7E0D3;
   --primary:#0E7C7B;--on-primary:#FFFFFF;
   --ingreso:#1E8A5E;--gasto:#E8604C;--ahorro:#C98F1E;
   --hero:#0B4D53;--hero-muted:#BEE2DE;--h-gasto:#FF9C87;--h-ahorro:#F2D084;--h-disp:#7BE6C8;
+}
+:root[data-pal="rojo"]{
+  --bg:#FBF3F2;--surface:#FFFFFF;--surface2:#F6E5E3;--ink:#2B1517;--muted:#7A5A5D;--line:#EBD5D3;
+  --primary:#C3262F;--on-primary:#FFFFFF;
+  --ingreso:#1E8A5E;--gasto:#F0604D;--ahorro:#C99432;
+  --hero:#8F1D2A;--hero-muted:#F6CDCB;--h-gasto:#FFB3A3;--h-ahorro:#FFD98A;--h-disp:#8FE3BF;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
@@ -47,6 +53,12 @@
     --ingreso:#52D69B;--gasto:#FF8D79;--ahorro:#E8BE62;
     --hero:#0F5A5E;
   }
+  :root[data-pal="rojo"]:not([data-theme="light"]){
+    --bg:#1B0F11;--surface:#2A1A1D;--surface2:#38252A;--ink:#FBEDEC;--muted:#C9A5A8;--line:#4A3236;
+    --primary:#FF8A8F;--on-primary:#2A0D10;
+    --ingreso:#52D69B;--gasto:#FF8A78;--ahorro:#E8BE62;
+    --hero:#7D1B27;
+  }
 }
 :root[data-theme="dark"]{
   --bg:#0D1325;--surface:#161F36;--surface2:#1F2A48;--ink:#E9EFFF;--muted:#9AA9CF;--line:#2A3759;
@@ -60,6 +72,12 @@
   --primary:#5ED3CF;--on-primary:#062526;
   --ingreso:#52D69B;--gasto:#FF8D79;--ahorro:#E8BE62;
   --hero:#0F5A5E;
+}
+:root[data-theme="dark"][data-pal="rojo"]{
+  --bg:#1B0F11;--surface:#2A1A1D;--surface2:#38252A;--ink:#FBEDEC;--muted:#C9A5A8;--line:#4A3236;
+  --primary:#FF8A8F;--on-primary:#2A0D10;
+  --ingreso:#52D69B;--gasto:#FF8A78;--ahorro:#E8BE62;
+  --hero:#7D1B27;
 }
 *{box-sizing:border-box}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
@@ -261,6 +279,19 @@ textarea{min-height:120px;font-size:13px}
 .sw{display:flex}
 .sw i{width:26px;height:26px;border-radius:50%;margin-left:-6px;border:2px solid var(--surface);display:block}
 .sw i:first-child{margin-left:0}
+/* Fondo y superficies translúcidas */
+body{background:var(--bg);background:radial-gradient(900px 520px at 6% -8%,color-mix(in srgb,var(--primary) 20%,transparent),transparent 70%),radial-gradient(800px 500px at 100% 4%,color-mix(in srgb,var(--h-gasto) 22%,transparent),transparent 70%),var(--bg);background-attachment:fixed}
+.card,.tile,.total-strip div,.group .gbox,.welcome,.tbl-wrap,.palbtn,.icon-btn{background:color-mix(in srgb,var(--surface) 74%,transparent);-webkit-backdrop-filter:blur(14px) saturate(1.15);backdrop-filter:blur(14px) saturate(1.15)}
+.nav{background:color-mix(in srgb,var(--surface) 84%,transparent);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
+.sheet,.sheet-h{background:color-mix(in srgb,var(--surface) 95%,transparent)}
+.sheet{-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+.pal{grid-template-columns:repeat(3,1fr)}
+.palbtn{font-size:13px;padding:10px 6px;text-align:center}
+.note.bad{background:var(--bad-bg);color:var(--bad)}
+.note .link{padding:0 4px}
+.carry p{margin:8px 0 10px}
+.carry-card{border-color:var(--primary)}
+.impl .mini{white-space:normal;flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -292,6 +323,7 @@ const MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','
 const MES_C=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
 const COLORS=['#3B4BC8','#E2561F','#0E8A6B','#2596D6','#C98A00','#B8327E','#6B7FD6'];
 const COLORS_V=['#0E7C7B','#E8604C','#C98F1E','#3D8B5A','#5B6CC9','#C2527A','#2B6F8E'];
+const COLORS_R=['#C3262F','#F0604D','#C99432','#1E8A5E','#3568D4','#B8327E','#8A5A44'];
 const MODO={debito:'Débito automático',manual:'Pago manual',efectivo:'Efectivo'};
 const PAY={efectivo:'Efectivo',transferencia:'Transferencia',deposito:'Depósito',tarjeta:'Tarjeta'};
 const $=(s,r)=>(r||document).querySelector(s);
@@ -364,10 +396,10 @@ let S=null,storageOk=true,mes=todayStr().slice(0,7),tab='inicio',gView='ARS',mVi
 function defaultState(){
   return{v:1,
     cats:[{id:'c1',n:'Servicios',a:false},{id:'c2',n:'Alquiler',a:false},{id:'c3',n:'Ahorro/Inversión',a:true},{id:'c4',n:'Otros',a:false}],
-    cards:[],months:{},name:'',pal:'azul',nameAsked:false};
+    cards:[],months:{},name:'',pal:'verde',mode:'auto',nameAsked:false};
 }
 function normalize(d){
-  d.name=typeof d.name==='string'?d.name:'';d.pal=d.pal==='verde'?'verde':'azul';d.nameAsked=!!d.nameAsked;
+  d.name=typeof d.name==='string'?d.name:'';d.pal=['azul','verde','rojo'].indexOf(d.pal)>=0?d.pal:'verde';d.mode=['auto','claro','oscuro'].indexOf(d.mode)>=0?d.mode:'auto';d.nameAsked=!!d.nameAsked;
   d.cats=Array.isArray(d.cats)?d.cats:[];d.cards=Array.isArray(d.cards)?d.cards:[];d.months=d.months&&typeof d.months==='object'?d.months:{};
   for(const k of Object.keys(d.months)){
     const m=d.months[k];m.inc=Array.isArray(m.inc)?m.inc:[];m.exp=Array.isArray(m.exp)?m.exp:[];m.cards=m.cards&&typeof m.cards==='object'?m.cards:{};
@@ -408,7 +440,7 @@ function ensureMonth(key){
 const catById=id=>S.cats.find(c=>c.id===id);
 const catName=id=>{const c=catById(id);return c?c.n:'Sin categoría';};
 const catIsAhorro=id=>{const c=catById(id);return!!(c&&c.a);};
-const catColor=id=>{const i=S.cats.findIndex(c=>c.id===id),A=S.pal==='verde'?COLORS_V:COLORS;return A[(i<0?0:i)%A.length];};
+const catColor=id=>{const i=S.cats.findIndex(c=>c.id===id),A=S.pal==='verde'?COLORS_V:S.pal==='rojo'?COLORS_R:COLORS;return A[(i<0?0:i)%A.length];};
 const cardName=id=>{const c=S.cards.find(x=>x.id===id);return c?c.n:'tarjeta';};
 
 /* Cálculo: lo pagado con tarjeta nunca se suma dos veces */
@@ -433,14 +465,35 @@ function calc(mo,cur){
 }
 
 /* Vencimientos de todos los meses con datos */
-function vencList(){
+function vencDe(k,mo){
   const out=[];
-  for(const k of Object.keys(S.months)){
-    const mo=S.months[k];if(mo.auto)continue;
-    for(const e of mo.exp)if(e.venc)out.push({kind:'exp',mk:k,id:e.id,n:e.n,m:e.m,cur:e.cur,venc:e.venc,modo:e.modo,paid:!!e.paid,rem:e.pay==='tarjeta'?e.card:''});
-    for(const c of S.cards){const r=mo.cards[c.id];if(r&&r.venc)out.push({kind:'card',mk:k,id:c.id,n:c.n,m:r.ars||0,m2:r.usd||0,venc:r.venc,modo:r.modo,paid:!!r.paid});}
-  }
+  for(const e of mo.exp)if(e.venc)out.push({kind:'exp',mk:k,id:e.id,n:e.n,m:e.m,cur:e.cur,venc:e.venc,modo:e.modo,paid:!!e.paid,rem:e.pay==='tarjeta'?e.card:''});
+  for(const c of S.cards){const r=mo.cards[c.id];if(r&&r.venc)out.push({kind:'card',mk:k,id:c.id,n:c.n,m:r.ars||0,m2:r.usd||0,venc:r.venc,modo:r.modo,paid:!!r.paid});}
   return out;
+}
+function vencList(){const out=[];for(const k of Object.keys(S.months)){const mo=S.months[k];if(mo.auto)continue;out.push.apply(out,vencDe(k,mo));}return out;}
+function vencAtrasados(){
+  let n=0,first='';
+  for(const k of Object.keys(S.months).sort()){
+    if(k>=mes)break;const mo=S.months[k];if(mo.auto)continue;
+    vencDe(k,mo).forEach(x=>{if(!x.paid&&daysUntil(x.venc)<0){n++;if(!first)first=k;}});
+  }
+  return{n:n,first:first};
+}
+function carryBanner(mo){
+  const pk=shiftKey(mes,-1),pm=S.months[pk];
+  if(!pm||pm.auto||!monthHasData(pm))return'';
+  const nmP=MESES[+pk.slice(5)-1].toLowerCase(),c=mo.carry||{};let out='';
+  for(const cur of ['ARS','USD']){
+    const amt=Math.round(calc(pm,cur).disp*100)/100;
+    if(!(amt>0)||c[cur])continue;
+    out+='<div class="carry"><p><b class="num">'+money(amt,cur)+'</b> sobraron en '+nmP+(cur==='USD'?' (en dólares)':'')+'. ¿Qué hacés con eso?</p><div class="btnrow grow"><button class="btn sm" data-act="carry" data-cur="'+cur+'" data-how="ingreso">Sumar como ingreso</button><button class="btn sm" data-act="carry" data-cur="'+cur+'" data-how="ahorro">Pasar a ahorro</button><button class="btn sm" data-act="carry" data-cur="'+cur+'" data-how="no">Ahora no</button></div></div>';
+  }
+  return out?'<section class="card carry-card"><h2>Excedente de '+nmP+'</h2>'+out+'</section>':'';
+}
+function applyLook(){
+  const r=document.documentElement;r.setAttribute('data-pal',S.pal);
+  if(S.mode==='claro')r.setAttribute('data-theme','light');else if(S.mode==='oscuro')r.setAttribute('data-theme','dark');else r.removeAttribute('data-theme');
 }
 
 /* ---------- Pantallas ---------- */
@@ -468,7 +521,7 @@ function vrow(x){
 function vInicio(mo){
   const a=calc(mo,'ARS'),nm=MESES[+mes.slice(5)-1];
   const empty=!mo.inc.length&&!mo.exp.length&&!S.cards.some(c=>{const r=mo.cards[c.id];return r&&(r.ars||r.usd);});
-  let h='';
+  let h=carryBanner(mo);
   if(empty){
     h+='<section class="welcome"><h2>Empecemos con '+nm+'</h2><p>Cargá lo que cobrás y lo que pagás. Lo que marques como “se repite” queda guardado para los meses siguientes.</p><div class="btnrow"><button class="btn primary" data-act="inc-new">Cargar un ingreso</button><button class="btn" data-act="exp-new">Cargar un gasto</button></div></section>';
   }else{
@@ -485,17 +538,17 @@ function vInicio(mo){
       +'<li style="--c:var(--h-disp)"><i class="dot" style="background:var(--h-disp)"></i><span>Disponible</span><b class="num">'+money(a.disp,'ARS')+'</b></li></ul></section>';
     h+='<div class="btnrow grow" style="margin-bottom:12px"><button class="btn" data-act="exp-new">'+ic('plus',18)+' Gasto</button><button class="btn" data-act="inc-new">'+ic('plus',18)+' Ingreso</button></div>';
   }
-  /* próximos vencimientos */
-  const pend=vencList().filter(x=>!x.paid).sort((x,y)=>x.venc<y.venc?-1:1).slice(0,3);
+  /* vencimientos del mes que se está mirando */
+  const delMes=vencDe(mes,mo),pend=delMes.filter(x=>!x.paid).sort((x,y)=>x.venc<y.venc?-1:1);
   let cols='';
-  cols+='<section class="card"><div class="sec-h"><h2>Próximos vencimientos</h2><button class="link" data-act="tab" data-t="vencs">Ver todos</button></div>'
-    +(pend.length?pend.map(vrow).join(''):'<p class="empty">No hay pagos pendientes con fecha. Ponele vencimiento a tus gastos y tarjetas para que no se te pasen.</p>')+'</section>';
+  cols+='<section class="card"><div class="sec-h"><h2>Vencimientos de '+nm.toLowerCase()+'</h2><button class="link" data-act="tab" data-t="vencs">Ver todos</button></div>'
+    +(pend.length?pend.slice(0,5).map(vrow).join('')+(pend.length>5?'<p class="hint">Y '+(pend.length-5)+' más en Vencimientos.</p>':''):'<p class="empty">'+(delMes.length?'No te quedan pagos pendientes en '+nm.toLowerCase()+'.':'No hay vencimientos cargados en '+nm.toLowerCase()+'. Ponele fecha a tus gastos y tarjetas para que no se te pasen.')+'</p>')+'</section>';
   /* en qué se va */
   const segs=S.cats.filter(c=>!c.a&&a.cats[c.id]>0).map(c=>({n:c.n,v:a.cats[c.id],col:catColor(c.id)}));
   if(a.cardRest>0)segs.push({n:'Tarjetas sin detallar',v:a.cardRest,col:'var(--muted)'});
   const st=segs.reduce((s,x)=>s+x.v,0);
   cols+='<section class="card"><h2>En qué se va la plata</h2>'
-    +(segs.length?'<ul class="brk">'+segs.sort((x,y)=>y.v-x.v).map(x=>'<li><div class="brk-h"><span>'+esc(x.n)+'</span><b class="num">'+money(x.v,'ARS')+'</b></div><div class="track"><i style="width:'+(x.v/st*100)+'%;background:'+x.col+'"></i></div></li>').join('')+'</ul>':'<p class="empty" style="margin-top:8px">Cuando cargues gastos vas a ver cómo se reparten por categoría.</p>')+'</section>';
+    +(segs.length?'<ul class="brk">'+segs.sort((x,y)=>y.v-x.v).map(x=>'<li><div class="brk-h"><span>'+esc(x.n)+'</span><b class="num">'+money(x.v,'ARS')+'</b></div><div class="track"><i style="width:'+(x.v/st*100)+'%;background:'+x.col+'"></i></div></li>').join('')+'</ul><div class="brk-h" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)"><b>Total</b><b class="num">'+money(st,'ARS')+'</b></div>'+(Math.round(st)!==Math.round(a.gastos)?'<p class="hint">El total de gastos del mes es '+money(a.gastos,'ARS')+'. La diferencia viene de gastos marcados con una tarjeta que superan el total cargado de esa tarjeta.</p>':''):'<p class="empty" style="margin-top:8px">Cuando cargues gastos vas a ver cómo se reparten por categoría.</p>')+'</section>';
   h+='<div class="grid two">'+cols+'</div>';
   /* dólares */
   const u=calc(mo,'USD');
@@ -554,17 +607,19 @@ function vGastos(mo){
   return h;
 }
 
-function vVencs(){
-  const all=vencList();
+function vVencs(mo){
+  const all=vencDe(mes,mo),nm=MESES[+mes.slice(5)-1].toLowerCase();
   const pend=all.filter(x=>!x.paid).sort((x,y)=>x.venc<y.venc?-1:1);
-  const paid=all.filter(x=>x.paid).sort((x,y)=>x.venc<y.venc?1:-1).slice(0,8);
+  const paid=all.filter(x=>x.paid).sort((x,y)=>x.venc<y.venc?-1:1);
   const late=pend.filter(x=>daysUntil(x.venc)<0),week=pend.filter(x=>{const d=daysUntil(x.venc);return d>=0&&d<=7;}),later=pend.filter(x=>daysUntil(x.venc)>7);
   let h='';
+  const at=vencAtrasados();
+  if(at.n)h+='<div class="note bad">Tenés '+at.n+(at.n===1?' pago vencido sin marcar':' pagos vencidos sin marcar')+' en meses anteriores. <button class="link" data-act="goto" data-k="'+at.first+'">Verlos</button></div>';
   if(all.length)h+='<p class="hint" style="margin:0 0 4px">Cuando pagues algo, tocá “Marcar pagado” en su fila.</p>';
-  if(!all.length)h+='<p class="empty">Todavía no hay vencimientos. Al cargar un gasto o una tarjeta, elegí la fecha de vencimiento y cómo se paga (débito automático, manual o efectivo).</p>';
+  else h+='<p class="empty">No hay vencimientos en '+nm+'. Al cargar un gasto o una tarjeta, elegí la fecha y cómo se paga (débito automático, manual o efectivo).</p>';
   const sec=(t,l,cls)=>l.length?'<h3 class="vgroup-t '+(cls||'')+'">'+t+' ('+l.length+')</h3><div class="card" style="padding:4px 14px">'+l.map(vrow).join('')+'</div>':'';
   h+=sec('Vencidos',late,'bad')+sec('Esta semana',week)+sec('Más adelante',later);
-  if(all.length&&!pend.length)h+='<p class="empty">No tenés pagos pendientes. Todo al día.</p>';
+  if(all.length&&!pend.length)h+='<p class="empty">No te quedan pagos pendientes en '+nm+'. Todo al día.</p>';
   h+=sec('Pagados',paid);
   h+='<button class="fab" data-act="exp-new">'+ic('plus',22)+' Gasto</button>';
   return h;
@@ -619,7 +674,7 @@ function vMeses(){
 function render(){
   const mo=ensureMonth(mes);
   $('#mesname').textContent=MESES[+mes.slice(5)-1]+' '+mes.slice(0,4);
-  renderNav();renderHello();document.documentElement.setAttribute('data-pal',S.pal);
+  renderNav();renderHello();applyLook();
   const v=$('#view');
   const note=(mo.auto&&mo.src&&(mo.inc.length||mo.exp.length)&&['inicio','ingresos','gastos'].indexOf(tab)>=0)?'<p class="note">Armamos este mes con lo que se repite de '+MESES[+mo.src.slice(5)-1].toLowerCase()+'. Editá montos y vencimientos y queda guardado.</p>':'';
   v.innerHTML=note+({inicio:vInicio,ingresos:vIngresos,gastos:vGastos,vencs:vVencs,meses:vMeses})[tab](mo);
@@ -765,9 +820,11 @@ function openSettings(){
   const cards=S.cards.length?S.cards.map(c=>'<li><input type="text" data-cardn="'+c.id+'" value="'+esc(c.n)+'" maxlength="40" aria-label="Nombre de la tarjeta"><button class="icon-btn sm" data-act="setcard-del" data-id="'+c.id+'" aria-label="Borrar tarjeta">'+ic('trash',18)+'</button></li>').join(''):'';
   openSheet('Ajustes',
    '<div class="sec"><h3>Tu nombre</h3><input type="text" data-name="1" value="'+esc(S.name)+'" maxlength="30" autocomplete="off" placeholder="Tu nombre"></div>'
-   +'<div class="sec"><h3>Colores</h3><div class="pal">'
-   +'<button class="palbtn" data-act="pal" data-v="azul" aria-pressed="'+(S.pal!=='verde')+'"><span class="sw"><i style="background:#3B4BC8"></i><i style="background:#E2561F"></i><i style="background:#2596D6"></i></span>Azul y naranja</button>'
-   +'<button class="palbtn" data-act="pal" data-v="verde" aria-pressed="'+(S.pal==='verde')+'"><span class="sw"><i style="background:#0E7C7B"></i><i style="background:#E8604C"></i><i style="background:#C98F1E"></i></span>Verde y coral</button></div></div>'
+   +'<div class="sec"><h3>Apariencia</h3><div class="seg" role="group" aria-label="Modo" style="margin-bottom:12px">'+[['auto','Automático'],['claro','Claro'],['oscuro','Oscuro']].map(o=>'<button data-act="mode" data-v="'+o[0]+'" aria-pressed="'+(S.mode===o[0])+'">'+o[1]+'</button>').join('')+'</div>'
+   +'<div class="pal">'
+   +'<button class="palbtn" data-act="pal" data-v="verde" aria-pressed="'+(S.pal==='verde')+'"><span class="sw"><i style="background:#0E7C7B"></i><i style="background:#E8604C"></i><i style="background:#C98F1E"></i></span>Verde y coral</button>'
+   +'<button class="palbtn" data-act="pal" data-v="azul" aria-pressed="'+(S.pal==='azul')+'"><span class="sw"><i style="background:#3B4BC8"></i><i style="background:#E2561F"></i><i style="background:#2596D6"></i></span>Azul y naranja</button>'
+   +'<button class="palbtn" data-act="pal" data-v="rojo" aria-pressed="'+(S.pal==='rojo')+'"><span class="sw"><i style="background:#C3262F"></i><i style="background:#F0604D"></i><i style="background:#C99432"></i></span>Rojo y coral</button></div></div>'
    +'<div class="sec"><h3>Categorías</h3><ul class="edl">'+cats+'</ul><div class="addrow"><input type="text" id="newcat" placeholder="Nueva categoría" maxlength="40"><button class="btn" data-act="cat-add">Agregar</button></div><p class="hint">Marcá “Ahorro” en las que son ahorro o inversión: no cuentan como gasto.</p></div>'
    +'<div class="sec"><h3>Tarjetas</h3>'+(cards?'<ul class="edl">'+cards+'</ul>':'<p class="hint" style="margin:0 0 10px">Todavía no agregaste tarjetas.</p>')+'<div class="addrow"><input type="text" id="newcardset" placeholder="Nueva tarjeta" maxlength="40"><button class="btn" data-act="setcard-add">Agregar</button></div></div>'
    +'<div class="sec"><h3>Respaldo</h3><p class="hint" style="margin:0 0 10px">Tus datos viven solo en este dispositivo. Si borrás los datos del navegador se pierden, así que guardá un respaldo de vez en cuando.</p>'
@@ -788,10 +845,42 @@ async function exportar(){
 function stageImport(txt){
   let d;try{d=JSON.parse(txt);}catch(e){toast('Ese texto no es un respaldo válido.');return;}
   if(!validState(d)){toast('Ese texto no es un respaldo de esta app.');return;}
-  pendingImport=d;
+  pendingImport=normalize(d);
   const b=$('#impbox');if(!b)return;
+  const keys=Object.keys(d.months).filter(k=>!d.months[k].auto&&monthHasData(d.months[k])).sort().reverse();
   b.hidden=false;
-  b.innerHTML='<p class="hint" style="margin:0 0 8px">Respaldo leído ('+Object.keys(d.months).length+' meses). Si lo cargás, reemplaza lo que hay ahora en este dispositivo.</p><button class="btn primary" data-act="imp-ok">Reemplazar mis datos</button>';
+  b.innerHTML='<p class="hint" style="margin:0 0 8px">Elegí qué meses importar. Los que elijas reemplazan ese mes en este dispositivo; el resto no se toca.</p>'
+    +(keys.length?'<ul class="edl impl">'+keys.map(k=>{const m=d.months[k];return '<li><label class="mini"><input type="checkbox" data-impm="'+k+'" checked> '+MESES[+k.slice(5)-1]+' '+k.slice(0,4)+'<span class="chip">'+m.inc.length+' ingresos, '+m.exp.length+' gastos</span>'+(S.months[k]&&!S.months[k].auto&&monthHasData(S.months[k])?'<span class="chip warn">Ya existe</span>':'')+'</label></li>';}).join('')+'</ul><div class="btnrow"><button class="btn primary" data-act="imp-months">Importar meses elegidos</button></div>':'<p class="empty">El respaldo no tiene meses con datos.</p>')
+    +'<p class="hint" style="margin:14px 0 8px">O reemplazá todo lo de este dispositivo con el respaldo completo, incluidas categorías, tarjetas y colores.</p><button class="btn danger" data-act="imp-ok">Reemplazar todo</button>';
+}
+function importMonths(d,keys){
+  const cm={},km={};
+  const mapCat=id=>{
+    if(cm[id]!==undefined)return cm[id];
+    const ic=d.cats.find(x=>x.id===id);
+    if(!ic){cm[id]=id;return id;}
+    let c=S.cats.find(x=>x.n.toLowerCase()===ic.n.toLowerCase());
+    if(!c){c={id:S.cats.some(x=>x.id===ic.id)?uid():ic.id,n:ic.n,a:!!ic.a};S.cats.push(c);}
+    cm[id]=c.id;return c.id;
+  };
+  const mapCard=id=>{
+    if(km[id]!==undefined)return km[id];
+    const ic=d.cards.find(x=>x.id===id);
+    if(!ic){km[id]=id;return id;}
+    let c=S.cards.find(x=>x.n.toLowerCase()===ic.n.toLowerCase());
+    if(!c){c={id:S.cards.some(x=>x.id===ic.id)?uid():ic.id,n:ic.n};S.cards.push(c);}
+    km[id]=c.id;return c.id;
+  };
+  let n=0;
+  for(const k of keys){
+    const src=d.months[k];if(!src)continue;
+    const m=JSON.parse(JSON.stringify(src));
+    m.exp.forEach(e=>{e.cat=mapCat(e.cat);if(e.card)e.card=mapCard(e.card);});
+    const nc={};Object.keys(m.cards).forEach(id=>{nc[mapCard(id)]=m.cards[id];});m.cards=nc;
+    m.auto=false;delete m.src;
+    S.months[k]=m;n++;
+  }
+  save();return n;
 }
 
 function renderHello(){const h=$('#hello');if(!h)return;h.textContent=S.name?'Hola, '+S.name:'';h.hidden=!S.name;}
@@ -813,6 +902,30 @@ const H={
   'mes-next':()=>{mes=shiftKey(mes,1);render();},
   'mes-hoy':()=>{mes=todayStr().slice(0,7);render();},
   ajustes:()=>openSettings(),
+  mode:b=>{S.mode=b.dataset.v;save();render();b.parentElement.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));},
+  goto:b=>{mes=b.dataset.k;render();window.scrollTo(0,0);},
+  carry:b=>{
+    const mo=S.months[mes],pk=shiftKey(mes,-1),pm=S.months[pk];if(!mo||!pm)return;
+    const cur=b.dataset.cur,how=b.dataset.how,amt=Math.round(calc(pm,cur).disp*100)/100;
+    if(!mo.carry)mo.carry={};
+    if(how==='no'){mo.carry[cur]='no';commit();return;}
+    if(!(amt>0))return;
+    const nm='Excedente de '+MESES[+pk.slice(5)-1].toLowerCase();
+    if(how==='ingreso')mo.inc.push({id:uid(),n:nm,m:amt,cur:cur,rep:false,carry:true});
+    else{
+      let ah=S.cats.find(c=>c.a);
+      if(!ah){ah={id:uid(),n:'Ahorro/Inversión',a:true};S.cats.push(ah);}
+      mo.exp.push({id:uid(),n:nm,m:amt,cur:cur,cat:ah.id,pay:'transferencia',card:'',rep:false,venc:'',modo:'manual',paid:false,prev:'',carry:true});
+    }
+    mo.carry[cur]=how;commit();
+    toast(how==='ingreso'?'Sumado como ingreso.':'Pasado a ahorro.');
+  },
+  'imp-months':()=>{
+    const ks=Array.prototype.slice.call(document.querySelectorAll('#impbox [data-impm]')).filter(x=>x.checked).map(x=>x.dataset.impm);
+    if(!ks.length){toast('Elegí al menos un mes.');return;}
+    const n=importMonths(pendingImport,ks);pendingImport=null;closeSheet();render();
+    toast(n+(n===1?' mes importado.':' meses importados.'));
+  },
   pal:b=>{S.pal=b.dataset.v;save();render();document.querySelectorAll('.palbtn').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));},
   close:()=>closeSheet(),
   gcur:b=>{gView=b.dataset.v;render();},
@@ -879,7 +992,7 @@ document.addEventListener('click',e=>{
     const f=seg.closest('form');if(f&&f.dataset.kind==='exp')syncExp(f);
     return;
   }
-  if(e.target===$('#sheet')){closeSheet();return;}
+  if(e.target===$('#sheet')){if(!$('#f'))closeSheet();return;}
   const b=e.target.closest('[data-act]');
   if(b&&H[b.dataset.act])H[b.dataset.act](b,e);
 });
@@ -902,7 +1015,23 @@ document.addEventListener('change',e=>{
     const r=new FileReader();r.onload=()=>stageImport(String(r.result));r.onerror=()=>toast('No se pudo leer el archivo.');r.readAsText(t.files[0]);
   }
 });
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#sheet').hidden)closeSheet();});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&!$('#sheet').hidden){closeSheet();return;}
+  if(e.key!=='Enter')return;
+  const t=e.target;
+  if(!t||t.tagName!=='INPUT'||t.type==='checkbox'||t.type==='file'||t.type==='button'||t.type==='submit')return;
+  if(!t.closest('#sheet'))return;
+  e.preventDefault();
+  if(t.id==='newcat'){H['cat-add']();return;}
+  if(t.id==='newcardset'){H['setcard-add']();return;}
+  const f=t.form;
+  if(f){
+    const fs=Array.prototype.slice.call(f.querySelectorAll('input,select')).filter(x=>x.type!=='hidden'&&x.type!=='checkbox'&&x.offsetParent!==null);
+    const i=fs.indexOf(t);
+    if(i>=0&&i<fs.length-1){fs[i+1].focus();return;}
+  }
+  t.blur();
+});
 
 /* ---------- Inicio ---------- */
 S=load()||defaultState();
