@@ -287,7 +287,7 @@ textarea{min-height:120px;font-size:13px}
 .callist label input{width:22px;height:22px;accent-color:var(--primary);flex:none}
 .callist .ct{display:flex;flex-direction:column;min-width:0}
 .callist .ct small{color:var(--muted);font-weight:500}
-.callist a.btn{flex:none;text-decoration:none}
+.callist a.btn{flex:none;text-decoration:none;color:var(--primary)}
 .calbtn{display:inline-flex;align-items:center;gap:6px;margin:0 0 12px}
 .pal{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .palbtn{display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px;border:2px solid var(--line);border-radius:16px;background:var(--surface);font-weight:700}
@@ -999,7 +999,8 @@ function openSettings(){
    +'<button class="palbtn" data-act="pal" data-v="rojo" aria-pressed="'+(S.pal==='rojo')+'"><span class="sw"><i style="background:#C3262F"></i><i style="background:#F0604D"></i><i style="background:#C99432"></i></span>Rojo y coral</button></div></div>'
    +'<div class="sec"><h3>Categorías</h3><ul class="edl">'+cats+'</ul><div class="addrow"><input type="text" id="newcat" placeholder="Nueva categoría" maxlength="40"><button class="btn" data-act="cat-add">Agregar</button></div><p class="hint">Marcá “Ahorro” en las que son ahorro o inversión: no cuentan como gasto.</p></div>'
    +'<div class="sec"><h3>Tarjetas</h3>'+(cards?'<ul class="edl">'+cards+'</ul>':'<p class="hint" style="margin:0 0 10px">Todavía no agregaste tarjetas.</p>')+'<div class="addrow"><input type="text" id="newcardset" placeholder="Nueva tarjeta" maxlength="40"><button class="btn" data-act="setcard-add">Agregar</button></div></div>'
-   +'<div class="sec"><h3>Respaldo</h3><p class="hint" style="margin:0 0 10px">Tus datos viven solo en este dispositivo. Si borrás los datos del navegador se pierden, así que guardá un respaldo de vez en cuando.</p>'
+   +'<div class="sec"><h3>Respaldo</h3><p class="hint" style="margin:0 0 8px">Tus datos se guardan solo en este dispositivo. Borrar el historial no los afecta.</p>'
+   +'<div class="note" style="margin:0 0 10px"><b>Se borran solo si:</b> eliminás los datos o cookies de esta página, restablecés o cambiás el teléfono, o borrás los datos del navegador. También si la app cambia de dirección web.<br><b>Antes de hacerlo:</b> tocá “Exportar respaldo” y guardalo fuera del teléfono (Drive, mail o WhatsApp). Después abrís la app, tocás “Importar respaldo” → “Reemplazar todo” y queda como la tenías.</div>'
    +'<div class="btnrow"><button class="btn" data-act="bk-export">Exportar respaldo</button><button class="btn" data-act="bk-import">Importar respaldo</button></div>'
    +'<input type="file" id="impfile" accept=".json,application/json" hidden>'
    +'<div id="bkbox" hidden style="margin-top:12px"><p class="hint" style="margin:0 0 6px">Copiá este texto y guardalo en un lugar seguro. Para restaurar, pegá un respaldo acá y tocá “Importar texto”.</p><textarea spellcheck="false"></textarea><div class="btnrow" style="margin-top:8px"><button class="btn sm" data-act="bk-text">Importar texto</button></div></div>'
@@ -1276,6 +1277,8 @@ $('#b-next').innerHTML=ic('right',22);
 $('#b-set').innerHTML=ic('sliders',22);
 render();
 if(!S.name&&!S.nameAsked){S.nameAsked=true;save();openName();}
+/* Pedirle al navegador que no borre los datos de la app por su cuenta */
+try{if(navigator.storage&&navigator.storage.persist){navigator.storage.persisted().then(p=>{if(!p)navigator.storage.persist();}).catch(()=>{});}}catch(e){}
 if(!storageOk)toast('Este navegador no deja guardar datos. Exportá un respaldo desde Ajustes.');
 try{if(window.claude&&window.claude.use){window.claude.use('downloads').then(m=>{dl=m;}).catch(()=>{});}}catch(e){}
 })();
