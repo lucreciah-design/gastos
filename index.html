@@ -19,7 +19,7 @@
   --ingreso:#0E8A6B;--gasto:#E2561F;--ahorro:#2596D6;
   --aviso:#8A5A00;--aviso-bg:#FBEFD2;--bad:#B63A20;--bad-bg:#FBE4DE;--ok:#0F6B53;--ok-bg:#DDF3EA;
   --hero:#1E2A74;--hero-ink:#FFFFFF;--hero-muted:#C4CDF3;
-  --h-gasto:#FF9D5C;--h-ahorro:#7FD1FF;--h-disp:#62E3B4;--h-track:rgba(255,255,255,.16);
+  --h-gasto:#FF9D5C;--h-ahorro:#7FD1FF;--h-disp:#62E3B4;--h-track:rgba(255,255,255,.16);--h-ing:#FFFFFF;
   --display:'Bricolage Grotesque','Avenir Next','Trebuchet MS',system-ui,sans-serif;
   --body:'Figtree',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   --nav-h:64px;
@@ -133,7 +133,7 @@ h1,h2,h3,p{margin:0}
 .legend{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .legend li{display:flex;align-items:center;gap:10px}
 .legend .dot{width:12px;height:12px;border-radius:4px;flex:none}
-.legend li.tot .dot{visibility:hidden}
+.hero-sub{color:var(--hero-muted);font-weight:700;font-size:14px;margin:18px 0 10px;padding-top:14px;border-top:1px solid var(--h-track)}
 .legend span{flex:1}
 .legend b{font-size:17px}
 @media (min-width:640px){.legend{grid-template-columns:repeat(4,1fr);gap:16px}.legend li{flex-direction:column;align-items:flex-start;gap:2px}.legend li .dot{display:none}.legend li span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;background:var(--c)}.legend li.tot span::before{display:none}}
@@ -355,7 +355,8 @@ const ICON={
   right:'<path d="M9 5l7 7-7 7"/>',
   trash:'<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
   card:'<rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/>',
-  x:'<path d="M6 6l12 12M18 6L6 18"/>'
+  x:'<path d="M6 6l12 12M18 6L6 18"/>',
+  save:'<circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.8c0-1 1-1.6 2.5-1.6s2.5.6 2.5 1.7-1 1.5-2.5 1.8-2.5.7-2.5 1.8 1 1.7 2.5 1.7 2.5-.6 2.5-1.6"/>'
 };
 const ic=(n,s)=>'<svg width="'+(s||22)+'" height="'+(s||22)+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+ICON[n]+'</svg>';
 
@@ -406,13 +407,13 @@ let S=null,storageOk=true,mes=todayStr().slice(0,7),tab='inicio',gView='ARS',mVi
 function defaultState(){
   return{v:1,
     cats:[{id:'c1',n:'Servicios',a:false},{id:'c2',n:'Alquiler',a:false},{id:'c3',n:'Ahorro/Inversión',a:true},{id:'c4',n:'Otros',a:false}],
-    cards:[],months:{},plans:[],name:'',pal:'verde',mode:'auto',nameAsked:false};
+    cards:[],months:{},plans:[],ahorro:[],name:'',pal:'verde',mode:'auto',nameAsked:false};
 }
 function normalize(d){
   d.name=typeof d.name==='string'?d.name:'';d.pal=['azul','verde','rojo'].indexOf(d.pal)>=0?d.pal:'verde';d.mode=['auto','claro','oscuro'].indexOf(d.mode)>=0?d.mode:'auto';d.nameAsked=!!d.nameAsked;
-  d.cats=Array.isArray(d.cats)?d.cats:[];d.cards=Array.isArray(d.cards)?d.cards:[];d.plans=Array.isArray(d.plans)?d.plans.filter(p=>p&&typeof p==='object'&&p.q>=1&&/^\d{4}-\d{2}$/.test(p.start||'')&&isFinite(p.total)):[];d.months=d.months&&typeof d.months==='object'?d.months:{};
+  d.cats=Array.isArray(d.cats)?d.cats:[];d.cards=Array.isArray(d.cards)?d.cards:[];d.plans=Array.isArray(d.plans)?d.plans.filter(p=>p&&typeof p==='object'&&p.q>=1&&/^\d{4}-\d{2}$/.test(p.start||'')&&isFinite(p.total)):[];d.months=d.months&&typeof d.months==='object'?d.months:{};d.ahorro=Array.isArray(d.ahorro)?d.ahorro.filter(x=>x&&isFinite(x.m)&&(x.t==='ini'||x.t==='uso')&&/^\d{4}-\d{2}$/.test(x.k||'')):[];
   for(const k of Object.keys(d.months)){
-    const m=d.months[k];m.inc=Array.isArray(m.inc)?m.inc:[];m.exp=Array.isArray(m.exp)?m.exp:[];m.cards=m.cards&&typeof m.cards==='object'?m.cards:{};
+    const m=d.months[k];m.inc=Array.isArray(m.inc)?m.inc:[];m.exp=Array.isArray(m.exp)?m.exp:[];m.fx=Array.isArray(m.fx)?m.fx.filter(x=>x&&x.ars>0&&x.usd>0):[];m.cards=m.cards&&typeof m.cards==='object'?m.cards:{};
     Object.keys(m.cards).forEach(id=>{const r=m.cards[id];if(r&&typeof r==='object'){r.pays=Array.isArray(r.pays)?r.pays.filter(p=>p&&isFinite(p.m)&&(p.cur==='ARS'||p.cur==='USD')):[];}});
   }
   return d;
@@ -433,13 +434,13 @@ function crec(mo,id){
   if(!Array.isArray(r.pays))r.pays=[];
   return r;
 }
-function monthHasData(mo){return!!mo&&(mo.inc.length>0||mo.exp.length>0||Object.keys(mo.cards).some(k=>{const c=mo.cards[k];return c.ars||c.usd||c.venc;}));}
+function monthHasData(mo){return!!mo&&(mo.inc.length>0||mo.exp.length>0||(mo.fx&&mo.fx.length>0)||Object.keys(mo.cards).some(k=>{const c=mo.cards[k];return c.ars||c.usd||c.venc;}));}
 
 function ensureMonth(key){
   let mo=S.months[key];
   if(mo)return mo;
   const keys=Object.keys(S.months).filter(k=>k<key&&!S.months[k].auto&&monthHasData(S.months[k])).sort();
-  const nm={inc:[],exp:[],cards:{},auto:true};
+  const nm={inc:[],exp:[],fx:[],cards:{},auto:true};
   if(keys.length){
     const sk=keys[keys.length-1],src=S.months[sk],n=monthDiff(sk,key);nm.src=sk;
     src.inc.filter(i=>i.rep).forEach(i=>nm.inc.push(Object.assign({},i,{id:uid()})));
@@ -465,8 +466,13 @@ function planLeft(p,from){let t=0;for(let i=Math.max(0,from);i<p.q;i++)t+=planQu
 const mLabel=k=>MESES[+k.slice(5)-1].toLowerCase()+' '+k.slice(0,4);
 /* Cálculo: lo pagado con tarjeta nunca se suma dos veces */
 function calc(mo,cur){
+  const mk=monthKeyOf(mo);
   const inc=mo.inc.filter(i=>i.cur===cur).reduce((s,i)=>s+i.m,0);
   const carry=carryIn(mo,cur);
+  const uso=(cur==='ARS'&&mk)?S.ahorro.filter(x=>x.t==='uso'&&x.k===mk).reduce((s,x)=>s+x.m,0):0;
+  const fx=mo.fx||[];
+  const cambio=cur==='ARS'?fx.reduce((s,x)=>s+x.ars,0):0;
+  const compra=cur==='USD'?fx.reduce((s,x)=>s+x.usd,0):0;
   let gastos=0,ahorro=0;const cats={},tag={};
   for(const e of mo.exp){
     if(e.cur!==cur)continue;
@@ -474,7 +480,7 @@ function calc(mo,cur){
     if(e.pay==='tarjeta'){tag[e.card]=(tag[e.card]||0)+e.m;continue;}
     if(catIsAhorro(e.cat))ahorro+=e.m;else gastos+=e.m;
   }
-  if(cur==='ARS'){const mk=monthKeyOf(mo);if(mk)for(const c of cuotasDe(mk)){cats[c.p.cat]=(cats[c.p.cat]||0)+c.m;tag[c.p.card]=(tag[c.p.card]||0)+c.m;}}
+  if(cur==='ARS'&&mk)for(const c of cuotasDe(mk)){cats[c.p.cat]=(cats[c.p.cat]||0)+c.m;if(c.p.card)tag[c.p.card]=(tag[c.p.card]||0)+c.m;else gastos+=c.m;}
   let cardTot=0,cardRest=0;const est={};
   for(const c of S.cards){
     const r=crec(mo,c.id),real=(cur==='ARS'?r.ars:r.usd)||0,tg=tag[c.id]||0;
@@ -483,7 +489,8 @@ function calc(mo,cur){
     cardTot+=t;cardRest+=Math.max(0,t-tg);
   }
   gastos+=cardTot;
-  return{inc,carry,gastos,ahorro,disp:inc+carry-gastos-ahorro,cats,cardTot,cardRest,tag,est};
+  const disp=Math.round((inc+uso+compra+carry-gastos-ahorro-cambio)*100)/100;
+  return{inc,uso,cambio,compra,carry,gastos,ahorro,disp,cats,cardTot,cardRest,tag,est};
 }
 
 /* Pagos de tarjeta (uno o varios, hasta completar el total). No cambian los totales del mes. */
@@ -562,24 +569,47 @@ function propagar(kind,item){
   });
   return n;
 }
-function openAhorro(){
-  const mo=S.months[mes],a=calc(mo,'ARS'),u=calc(mo,'USD');
-  const cur=(a.disp>0||u.disp<=0)?'ARS':'USD';
-  openSheet('Asignar a ahorro',
-   '<form id="f" data-kind="ahorro" novalidate>'
-   +'<p class="hint" style="margin:0 0 12px">Te quedan '+money(a.disp,'ARS')+(u.disp>0?' y '+money(u.disp,'USD'):'')+' este mes. Lo que no asignes pasa al mes siguiente como sobrante.</p>'
-   +'<div class="fld"><span>Cuánto pasás a ahorro</span><div class="amt"><input type="text" name="m" inputmode="decimal" autocomplete="off" placeholder="0">'+segHtml('cur',[['ARS','Pesos'],['USD','Dólares']],cur)+'</div><p class="err" data-for="m" hidden></p></div>'
-   +'<div class="btnrow grow end"><button class="btn primary" type="submit">Guardar</button></div></form>');
+/* Ahorro: aportes (gastos de categoría ahorro) + plata a favor − lo usado. Solo pesos. */
+function ahorroSaldo(upto){
+  let t=0;
+  for(const k of Object.keys(S.months)){
+    if(k>upto)continue;const mo=S.months[k];if(mo.auto)continue;
+    for(const e of mo.exp)if(e.cur==='ARS'&&catIsAhorro(e.cat))t+=e.m;
+  }
+  for(const x of S.ahorro){if(x.k>upto)continue;t+=x.t==='ini'?x.m:-x.m;}
+  return Math.round(t*100)/100;
+}
+function openAhorroForm(kind,id){
+  const mo=S.months[mes],a=calc(mo,'ARS'),x=id?S.ahorro.find(y=>y.id===id):null;
+  const T={aporte:'Asignar a ahorro',ini:'Plata a favor',uso:'Usar ahorro'};
+  let hint;
+  if(kind==='aporte')hint='Pasás plata de lo que te queda este mes a tu ahorro. Hoy te quedan '+money(a.disp,'ARS')+'.';
+  else if(kind==='ini')hint='Plata que ya tenías ahorrada o a favor. Se suma a tu ahorro y no cambia lo que te queda este mes.';
+  else hint='Tenés ahorrado '+money(ahorroSaldo(mes)+(x?x.m:0),'ARS')+'. Al usarla se suma a los ingresos de este mes como “Del ahorro” y se resta de tu ahorro.';
+  openSheet(x?'Editar movimiento':T[kind],
+   '<form id="f" data-kind="ahorro" data-t="'+kind+'" data-id="'+(x?x.id:'')+'" novalidate>'
+   +'<p class="hint" style="margin:0 0 12px">'+hint+'</p>'
+   +'<label class="fld"><span>Concepto (opcional)</span><input type="text" name="n" maxlength="60" autocomplete="off" value="'+esc(x?x.n:'')+'" placeholder="Ej: Aguinaldo, arreglo del auto"></label>'
+   +'<label class="fld"><span>Monto en pesos</span><input type="text" name="m" inputmode="decimal" autocomplete="off" placeholder="0" value="'+(x?fmtIn(x.m):'')+'"><p class="err" data-for="m" hidden></p></label>'
+   +'<div class="btnrow grow end"><button class="btn primary" type="submit">Guardar</button>'+(x?'<button class="btn danger" type="button" data-act="sav-del" data-id="'+x.id+'">Eliminar</button>':'')+'</div></form>');
 }
 function saveAhorro(f){
   const el=f.elements;clearErr(f);
-  const m=parseNum(el.m.value),cur=el.cur.value,mo=S.months[mes],disp=calc(mo,cur).disp;
+  const m=parseNum(el.m.value),t=f.dataset.t,id=f.dataset.id,n=el.n.value.trim(),mo=S.months[mes];
   if(m===null||!(m>0))return err(f,'m','Escribí un monto mayor a cero.');
-  if(m>disp+0.001)return err(f,'m','Te quedan '+money(Math.max(0,disp),cur)+' en '+(cur==='ARS'?'pesos':'dólares')+'. Elegí un monto menor.');
-  let ah=S.cats.find(c=>c.a);
-  if(!ah){ah={id:uid(),n:'Ahorro/Inversión',a:true};S.cats.push(ah);}
-  mo.exp.push({id:uid(),n:'Ahorro asignado',m:m,cur:cur,cat:ah.id,pay:'transferencia',card:'',rep:false,venc:'',modo:'manual',paid:false,prev:''});
-  commit();closeSheet();toast('Pasado a ahorro. El resto queda para el mes siguiente.');
+  if(t==='aporte'){
+    const disp=calc(mo,'ARS').disp;
+    if(m>disp+0.001)return err(f,'m',disp>0?'Este mes te quedan '+money(disp,'ARS')+'. Elegí un monto menor.':'Este mes no te queda disponible. Si es plata que ya tenías, usá “Plata a favor”.');
+    let ah=S.cats.find(c=>c.a);
+    if(!ah){ah={id:uid(),n:'Ahorro/Inversión',a:true};S.cats.push(ah);}
+    mo.exp.push({id:uid(),n:n||'Ahorro asignado',m:m,cur:'ARS',cat:ah.id,pay:'transferencia',card:'',rep:false,venc:'',modo:'manual',paid:false,prev:''});
+    commit();closeSheet();toast('Pasado a ahorro.');return;
+  }
+  const old=id?S.ahorro.find(y=>y.id===id):null;
+  if(t==='uso'){const disp=ahorroSaldo(mes)+(old?old.m:0);if(m>disp+0.001)return err(f,'m','Tenés ahorrado '+money(Math.max(0,disp),'ARS')+'. Elegí un monto menor.');}
+  const item={id:old?old.id:uid(),k:old?old.k:mes,t:t,m:m,n:n};
+  if(old)S.ahorro[S.ahorro.indexOf(old)]=item;else S.ahorro.push(item);
+  commit();closeSheet();toast(t==='uso'?'Listo: se sumó a los ingresos del mes y se restó de tu ahorro.':'Plata a favor guardada.');
 }
 function applyLook(){
   const r=document.documentElement;r.setAttribute('data-pal',S.pal);
@@ -587,7 +617,7 @@ function applyLook(){
 }
 
 /* ---------- Pantallas ---------- */
-const TABS=[['inicio','Inicio','home'],['ingresos','Ingresos','ingresos'],['gastos','Gastos','gastos'],['vencs','Vencimientos','cal'],['meses','Meses','bars']];
+const TABS=[['inicio','Inicio','home'],['ingresos','Ingresos','ingresos'],['gastos','Gastos','gastos'],['ahorro','Ahorro','save'],['vencs','Vencimientos','cal'],['meses','Meses','bars']];
 
 function renderNav(){
   $('#nav').innerHTML='<div class="brand">Mis cuentas</div>'+TABS.map(t=>'<button data-act="tab" data-t="'+t[0]+'"'+(tab===t[0]?' aria-current="page"':'')+'>'+ic(t[2],22)+'<span>'+t[1]+'</span></button>').join('');
@@ -618,28 +648,40 @@ function vrow(x){
     +'<button class="pagar'+(part?' part':'')+'" aria-pressed="'+x.paid+'" aria-label="'+aria+'" data-act="'+(isC?'card-pay':'pagado')+'" data-kind="'+x.kind+'" data-mk="'+x.mk+'" data-id="'+x.id+'"><span class="cc">'+ic('check',22)+'</span>'+lbl+'</button></div>';
 }
 
+function legendHtml(items){return'<ul class="legend">'+items.map(x=>'<li style="--c:'+x.c+'"><i class="dot" style="background:'+x.c+'"></i><span>'+x.l+'</span><b class="num">'+money(x.v,x.cur)+'</b></li>').join('')+'</ul>';}
 function vInicio(mo){
-  const a=calc(mo,'ARS'),nm=MESES[+mes.slice(5)-1];
-  const empty=!mo.inc.length&&!mo.exp.length&&!cuotasDe(mes).length&&!S.cards.some(c=>{const r=mo.cards[c.id];return r&&(r.ars||r.usd);})&&!a.carry;
+  const a=calc(mo,'ARS'),u=calc(mo,'USD'),nm=MESES[+mes.slice(5)-1];
+  const hasUsd=!!(u.inc||u.compra||u.gastos||u.ahorro||u.carry);
+  const empty=!mo.inc.length&&!mo.exp.length&&!(mo.fx||[]).length&&!a.uso&&!cuotasDe(mes).length&&!S.cards.some(c=>{const r=mo.cards[c.id];return r&&(r.ars||r.usd);})&&!a.carry&&!u.carry;
   let h=traerBtn(mo);
   if(empty){
     h+='<section class="welcome"><h2>Empecemos con '+nm+'</h2><p>Cargá lo que cobrás y lo que pagás. Lo que marques como “se repite” queda guardado para los meses siguientes.</p><div class="btnrow"><button class="btn primary" data-act="inc-new">Cargar un ingreso</button><button class="btn" data-act="exp-new">Cargar un gasto</button></div></section>';
   }else{
-    const ingT=a.inc+a.carry;
-    const tot=Math.max(ingT,a.gastos+a.ahorro)||1;
-    const pg=a.gastos/tot*100,pa=a.ahorro/tot*100,pd=Math.max(0,a.disp)/tot*100;
-    const sub=a.carry>0?'Sobrante del mes pasado '+money(a.carry,'ARS'):a.carry<0?'El mes pasado te pasaste por '+money(-a.carry,'ARS'):'';
+    const ingT=a.inc+a.uso+a.carry;
+    const tot=Math.max(ingT,a.gastos+a.cambio+a.ahorro)||1;
+    const pg=a.gastos/tot*100,pc=a.cambio/tot*100,pa=a.ahorro/tot*100,pd=Math.max(0,a.disp)/tot*100;
+    const sub=[];
+    if(a.carry>0)sub.push('Sobrante del mes pasado '+money(a.carry,'ARS'));else if(a.carry<0)sub.push('El mes pasado te pasaste por '+money(-a.carry,'ARS'));
+    if(a.uso>0)sub.push('Incluye '+money(a.uso,'ARS')+' del ahorro');
+    const items=[{c:'var(--h-ing)',l:'Ingresos',v:ingT,cur:'ARS'},{c:'var(--h-gasto)',l:'Gastos',v:a.gastos,cur:'ARS'}];
+    if(a.cambio>0)items.push({c:'var(--hero-muted)',l:'Compra de dólares',v:a.cambio,cur:'ARS'});
+    items.push({c:'var(--h-disp)',l:'Disponible',v:a.disp,cur:'ARS'},{c:'var(--h-ahorro)',l:'Ahorro',v:a.ahorro,cur:'ARS'});
     h+='<section class="hero"><p class="hero-l">'+(a.disp>=0?'Te queda':'Te pasaste por')+'</p>'
       +'<p class="hero-n num">'+money(Math.abs(a.disp),'ARS')+'</p>'
-      +(sub?'<p class="hero-s">'+sub+'</p>':'')
+      +(sub.length?'<p class="hero-s">'+sub.join('. ')+'</p>':'')
       +'<div class="bar" role="img" aria-label="Gastos '+money(a.gastos,'ARS')+', ingresos '+money(ingT,'ARS')+', disponible '+money(a.disp,'ARS')+', ahorro '+money(a.ahorro,'ARS')+'">'
-      +'<i style="width:'+pg+'%;background:var(--h-gasto)"></i><i style="width:'+pd+'%;background:var(--h-disp)"></i><i style="width:'+pa+'%;background:var(--h-ahorro)"></i></div>'
-      +'<ul class="legend">'
-      +'<li style="--c:var(--h-gasto)"><i class="dot" style="background:var(--h-gasto)"></i><span>Gastos</span><b class="num">'+money(a.gastos,'ARS')+'</b></li>'
-      +'<li class="tot"><i class="dot"></i><span>Ingresos</span><b class="num">'+money(ingT,'ARS')+'</b></li>'
-      +'<li style="--c:var(--h-disp)"><i class="dot" style="background:var(--h-disp)"></i><span>Disponible</span><b class="num">'+money(a.disp,'ARS')+'</b></li>'
-      +'<li style="--c:var(--h-ahorro)"><i class="dot" style="background:var(--h-ahorro)"></i><span>Ahorro</span><b class="num">'+money(a.ahorro,'ARS')+'</b></li></ul></section>';
-    h+='<div class="btnrow grow" style="margin-bottom:12px"><button class="btn" data-act="exp-new">'+ic('plus',18)+' Gasto</button><button class="btn" data-act="inc-new">'+ic('plus',18)+' Ingreso</button>'+((a.disp>0||calc(mo,'USD').disp>0)?'<button class="btn" data-act="ahorro-new">Asignar a ahorro</button>':'')+'</div>';
+      +'<i style="width:'+pg+'%;background:var(--h-gasto)"></i>'+(pc>0?'<i style="width:'+pc+'%;background:var(--hero-muted)"></i>':'')+'<i style="width:'+pd+'%;background:var(--h-disp)"></i><i style="width:'+pa+'%;background:var(--h-ahorro)"></i></div>'
+      +legendHtml(items);
+    if(hasUsd){
+      const ingU=u.inc+u.compra+u.carry;
+      const ui=[{c:'var(--h-ing)',l:'Ingresos',v:ingU,cur:'USD'},{c:'var(--h-gasto)',l:'Gastos',v:u.gastos,cur:'USD'},{c:'var(--h-disp)',l:'Disponible',v:u.disp,cur:'USD'}];
+      if(u.ahorro>0)ui.push({c:'var(--h-ahorro)',l:'Ahorro',v:u.ahorro,cur:'USD'});
+      h+='<p class="hero-sub">En dólares</p>'+legendHtml(ui);
+      if(u.carry>0)h+='<p class="hero-s" style="margin-top:10px">Dólares que sobraron del mes pasado: '+money(u.carry,'USD')+'</p>';
+      else if(u.carry<0)h+='<p class="hero-s" style="margin-top:10px">Del mes pasado faltan '+money(-u.carry,'USD')+': gastaste más dólares de los que cargaste.</p>';
+    }
+    h+='</section>';
+    h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px"><button class="btn" data-act="exp-new">'+ic('plus',18)+' Gasto</button><button class="btn" data-act="inc-new">'+ic('plus',18)+' Ingreso</button><button class="btn" data-act="fx-new">Compra de dólares</button><button class="btn" data-act="ahorro-new">Asignar a ahorro</button></div>';
   }
   /* vencimientos del mes que se está mirando */
   const delMes=vencDe(mes,mo),pend=delMes.filter(x=>!x.paid).sort((x,y)=>x.venc<y.venc?-1:1);
@@ -653,45 +695,44 @@ function vInicio(mo){
   cols+='<section class="card"><h2>En qué se va la plata</h2>'
     +(segs.length?'<ul class="brk">'+segs.sort((x,y)=>y.v-x.v).map(x=>'<li><div class="brk-h"><span>'+esc(x.n)+'</span><b class="num">'+money(x.v,'ARS')+'</b></div><div class="track"><i style="width:'+(x.v/st*100)+'%;background:'+x.col+'"></i></div></li>').join('')+'</ul><div class="brk-h" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)"><b>Total</b><b class="num">'+money(st,'ARS')+'</b></div>'+(Math.round(st)!==Math.round(a.gastos)?'<p class="hint">El total de gastos del mes es '+money(a.gastos,'ARS')+'. La diferencia viene de gastos marcados con una tarjeta que superan el total cargado de esa tarjeta.</p>':''):'<p class="empty" style="margin-top:8px">Cuando cargues gastos vas a ver cómo se reparten por categoría.</p>')+'</section>';
   h+='<div class="grid two">'+cols+'</div>';
-  h+=vCuotas();
-  /* dólares */
-  const u=calc(mo,'USD');
-  if(u.inc||u.gastos||u.ahorro||u.carry){
-    h+='<section class="card" style="margin-top:12px"><h2>En dólares</h2><div class="total-strip" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));margin:12px 0 0">'
-      +'<div><small>Ingresos</small><b class="num">'+money(u.inc,'USD')+'</b></div>'+(u.carry?'<div><small>'+(u.carry>0?'Sobrante':'Te pasaste')+'</small><b class="num">'+money(Math.abs(u.carry),'USD')+'</b></div>':'')+'<div><small>Gastos</small><b class="num">'+money(u.gastos,'USD')+'</b></div>'
-      +'<div><small>Ahorro</small><b class="num">'+money(u.ahorro,'USD')+'</b></div><div><small>Disponible</small><b class="num">'+money(u.disp,'USD')+'</b></div></div></section>';
-  }
   return h;
 }
 
-function vCuotas(){
-  const act=[];
-  for(const p of S.plans){const i=monthDiff(p.start,mes);if(i<p.q)act.push({p:p,i:i});}
-  act.sort((x,y)=>{const a=shiftKey(x.p.start,x.p.q-1),b=shiftKey(y.p.start,y.p.q-1);return a<b?-1:a>b?1:0;});
-  let h='<section class="card" style="margin-top:12px"><div class="sec-h"><h2>Cuotas</h2><button class="link" data-act="plan-new">Nueva compra</button></div>';
-  if(!act.length)return h+'<p class="empty">Cuando compres algo en cuotas, cargalo una sola vez y aparece solo en cada mes.</p></section>';
-  let est=0,rest=0;
-  h+='<div class="gbox" style="margin-top:8px">'+act.map(x=>{
-    const p=x.p,i=x.i,q=planQuota(p,Math.max(0,i)),left=planLeft(p,i+1);
-    if(i>=0)est+=planQuota(p,i);rest+=left+(i<0?0:0);
-    const quedan=i<0?p.q:p.q-1-i;
-    const st=i<0?'<span class="chip warn">Empieza en '+mLabel(p.start)+'</span>':(quedan===0?'<span class="chip ok">Última cuota</span>':'<span class="chip">Cuota '+(i+1)+' de '+p.q+'</span>');
-    return '<button class="row" data-act="plan-edit" data-id="'+p.id+'"><span class="row-main"><span class="row-t">'+esc(p.n)+'</span><span class="row-s"><span class="chip">'+ic('card',12)+' '+esc(cardName(p.card))+'</span>'+st+(quedan>0?'<span class="chip">'+(i<0?p.q+' cuotas':'Quedan '+quedan)+'</span>':'')+'</span>'
-      +'<span class="row-s" style="font-size:12px;color:var(--muted)">Termina en '+mLabel(shiftKey(p.start,p.q-1))+(left>0?'. Después de este mes faltan '+money(left,'ARS'):'')+'</span></span><span class="row-v num">'+money(q,'ARS')+'</span></button>';
-  }).join('')+'</div>';
-  h+='<div class="brk-h" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)"><span>Pagás en cuotas este mes</span><b class="num" style="white-space:nowrap">'+money(est,'ARS')+'</b></div>'
-    +'<div class="brk-h" style="margin-top:6px"><span>Falta después de este mes</span><b class="num" style="white-space:nowrap">'+money(rest,'ARS')+'</b></div>'
-    +'<p class="hint">Las cuotas ya están dentro del total de cada tarjeta. No se suman de nuevo.</p></section>';
+function vAhorro(mo){
+  const saldo=ahorroSaldo(mes),nm=MESES[+mes.slice(5)-1].toLowerCase();
+  const aportes=mo.exp.filter(e=>e.cur==='ARS'&&catIsAhorro(e.cat));
+  const ini=S.ahorro.filter(x=>x.k===mes&&x.t==='ini'),usos=S.ahorro.filter(x=>x.k===mes&&x.t==='uso');
+  const sum=l=>l.reduce((s,x)=>s+x.m,0);
+  let h='<div class="total-strip one"><div><small>Ahorrado hasta '+nm+'</small><b class="num">'+money(saldo,'ARS')+'</b></div></div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"><button class="btn" data-act="ahorro-new">Asignar a ahorro</button><button class="btn" data-act="ahorro-ini">Plata a favor</button></div><div class="btnrow grow" style="margin-bottom:10px"><button class="btn" data-act="ahorro-uso">Usar ahorro</button></div>';
+  h+='<p class="hint" style="margin:0 0 16px">Suma lo que asignaste y la plata a favor de todos los meses, y resta lo que usaste. Solo en pesos.</p>';
+  const grpH=(t,l,rows)=>l.length?'<section class="group"><div class="group-h"><h3>'+t+'</h3><span class="num">'+money(sum(l),'ARS')+'</span></div><div class="gbox">'+rows+'</div></section>':'';
+  h+=grpH('Asignado en '+nm,aportes,aportes.map(e=>'<button class="row" data-act="exp-edit" data-id="'+e.id+'"><span class="row-main"><span class="row-t">'+esc(e.n)+'</span><span class="row-s"><span class="chip">Sale de lo que te quedó</span></span></span><span class="row-v num pos">'+money(e.m,'ARS')+'</span></button>').join(''));
+  h+=grpH('Plata a favor',ini,ini.map(x=>'<button class="row" data-act="sav-edit" data-id="'+x.id+'"><span class="row-main"><span class="row-t">'+esc(x.n||'Plata a favor')+'</span><span class="row-s"><span class="chip">No cambia lo que te queda</span></span></span><span class="row-v num pos">'+money(x.m,'ARS')+'</span></button>').join(''));
+  h+=grpH('Usado en '+nm,usos,usos.map(x=>'<button class="row" data-act="sav-edit" data-id="'+x.id+'"><span class="row-main"><span class="row-t">'+esc(x.n||'Uso del ahorro')+'</span><span class="row-s"><span class="chip">Se sumó a tus ingresos</span></span></span><span class="row-v num">'+money(-x.m,'ARS')+'</span></button>').join(''));
+  if(!aportes.length&&!ini.length&&!usos.length)h+='<p class="empty">No hay movimientos de ahorro en '+nm+'.</p>';
   return h;
 }
 
 function vIngresos(mo){
-  const a=calc(mo,'ARS'),u=calc(mo,'USD');
-  let h=traerBtn(mo)+'<div class="total-strip'+(u.inc?'':' one')+'"><div><small>Ingresos en pesos</small><b class="num">'+money(a.inc,'ARS')+'</b></div>'+(u.inc?'<div><small>Ingresos en dólares</small><b class="num">'+money(u.inc,'USD')+'</b></div>':'')+'</div>';
+  const a=calc(mo,'ARS'),u=calc(mo,'USD'),usdT=u.inc+u.compra;
+  let h=traerBtn(mo)+'<div class="total-strip'+(usdT?'':' one')+'"><div><small>Ingresos en pesos</small><b class="num">'+money(a.inc,'ARS')+'</b></div>'+(usdT?'<div><small>Ingresos en dólares</small><b class="num">'+money(usdT,'USD')+'</b></div>':'')+'</div>';
+  h+='<div class="btnrow" style="margin:-4px 0 14px"><button class="btn sm" data-act="fx-new">Compra de dólares</button></div>';
   const pkn=MESES[+shiftKey(mes,-1).slice(5)-1].toLowerCase();
-  [['ARS',a],['USD',u]].forEach(x=>{if(x[1].carry){const neg=x[1].carry<0;h+='<div class="group"><div class="gbox"><div class="row"><span class="row-main"><span class="row-t">'+(neg?'Te pasaste en ':'Sobrante de ')+pkn+(x[0]==='USD'?' (dólares)':'')+'</span><span class="row-s"><span class="chip">'+(neg?'Automático, se resta de este mes':'Automático, se suma a este mes')+'</span></span></span><span class="row-v num'+(neg?'':' pos')+'">'+money(x[1].carry,x[0])+'</span></div></div></div>';}});
-  if(!mo.inc.length)h+='<p class="empty">Todavía no cargaste ingresos este mes. Tocá “Ingreso” para sumar un trabajo.</p>';
-  else h+='<div class="group"><div class="gbox">'+mo.inc.map(i=>'<button class="row" data-act="inc-edit" data-id="'+i.id+'"><span class="row-main"><span class="row-t">'+esc(i.n)+'</span><span class="row-s">'+(i.rep?'<span class="chip">'+ic('repeat',12)+' Se repite</span>':'<span class="chip">Solo este mes</span>')+'</span></span><span class="row-v num pos">'+money(i.m,i.cur)+'</span></button>').join('')+'</div></div>';
+  const fxs=mo.fx||[],usos=S.ahorro.filter(x=>x.t==='uso'&&x.k===mes);
+  [['ARS',a],['USD',u]].forEach(x=>{if(x[1].carry){
+    const neg=x[1].carry<0,isU=x[0]==='USD';
+    const t=isU?(neg?'Gastaste más dólares de los que cargaste en '+pkn:'Dólares que sobraron de '+pkn):(neg?'Te pasaste en ':'Sobrante de ')+pkn;
+    const c=isU&&neg?'Cargá la compra de dólares o el ingreso que falta':(neg?'Automático, se resta de este mes':'Automático, se suma a este mes');
+    h+='<div class="group"><div class="gbox"><div class="row"><span class="row-main"><span class="row-t">'+t+'</span><span class="row-s"><span class="chip">'+c+'</span></span></span><span class="row-v num'+(neg?'':' pos')+'">'+money(x[1].carry,x[0])+'</span></div></div></div>';}});
+  if(!mo.inc.length&&!fxs.length&&!usos.length)h+='<p class="empty">Todavía no cargaste ingresos este mes. Tocá “Ingreso” para sumar un trabajo.</p>';
+  else{
+    let rows='';
+    rows+=usos.map(x=>'<button class="row" data-act="sav-edit" data-id="'+x.id+'"><span class="row-main"><span class="row-t">Del ahorro'+(x.n?': '+esc(x.n):'')+'</span><span class="row-s"><span class="chip">Lo usaste de tu ahorro</span></span></span><span class="row-v num pos">'+money(x.m,'ARS')+'</span></button>').join('');
+    rows+=fxs.map(x=>'<button class="row" data-act="fx-edit" data-id="'+x.id+'"><span class="row-main"><span class="row-t">Compra de dólares</span><span class="row-s"><span class="chip">Pagaste '+money(x.ars,'ARS')+'</span></span></span><span class="row-v num pos">'+money(x.usd,'USD')+'</span></button>').join('');
+    rows+=mo.inc.map(i=>'<button class="row" data-act="inc-edit" data-id="'+i.id+'"><span class="row-main"><span class="row-t">'+esc(i.n)+'</span><span class="row-s">'+(i.rep?'<span class="chip">'+ic('repeat',12)+' Se repite</span>':'<span class="chip">Solo este mes</span>')+'</span></span><span class="row-v num pos">'+money(i.m,i.cur)+'</span></button>').join('');
+    h+='<div class="group"><div class="gbox">'+rows+'</div></div>';
+  }
   h+='<button class="fab" data-act="inc-new">'+ic('plus',22)+' Ingreso</button>';
   return h;
 }
@@ -700,6 +741,7 @@ function vGastos(mo){
   const cur=gView,a=calc(mo,cur);
   let h=traerBtn(mo)+'<div class="seg top-seg" role="group" aria-label="Moneda"><button data-act="gcur" data-v="ARS" aria-pressed="'+(cur==='ARS')+'">Pesos</button><button data-act="gcur" data-v="USD" aria-pressed="'+(cur==='USD')+'">Dólares</button></div>';
   h+='<div class="total-strip"><div><small>Gastos del mes</small><b class="num">'+money(a.gastos,cur)+'</b></div><div><small>Ahorro e inversión</small><b class="num">'+money(a.ahorro,cur)+'</b></div></div>';
+  h+='<div class="btnrow" style="margin:-4px 0 14px"><button class="btn sm" data-act="fx-new">Compra de dólares</button></div>';
   /* tarjetas */
   h+='<div class="sec-h"><h2>Tarjetas</h2></div><div class="tiles">';
   for(const c of S.cards){
@@ -719,8 +761,12 @@ function vGastos(mo){
   let any=false;
   if(cur==='ARS'){const cs=cuotasDe(mes);if(cs.length){any=true;
     h+='<section class="group"><div class="group-h"><h3>Cuotas de este mes</h3><span class="num">'+money(cs.reduce((t,c)=>t+c.m,0),'ARS')+'</span></div><div class="gbox">'
-      +cs.map(c=>'<button class="row" data-act="plan-edit" data-id="'+c.p.id+'"><span class="row-main"><span class="row-t">'+esc(c.p.n)+'</span><span class="row-s"><span class="chip">'+ic('card',12)+' '+esc(cardName(c.p.card))+', ya incluido</span><span class="chip">Cuota '+(c.i+1)+' de '+c.p.q+'</span><span class="chip">'+esc(catName(c.p.cat))+'</span></span></span><span class="row-v num">'+money(c.m,'ARS')+'</span></button>').join('')+'</div></section>';
+      +cs.map(c=>'<button class="row" data-act="plan-edit" data-id="'+c.p.id+'"><span class="row-main"><span class="row-t">'+esc(c.p.n)+'</span><span class="row-s">'+(c.p.card?'<span class="chip">'+ic('card',12)+' '+esc(cardName(c.p.card))+', ya incluido</span>':'<span class="chip">'+PAY[c.p.pay||'efectivo']+'</span>')+'<span class="chip">Cuota '+(c.i+1)+' de '+c.p.q+'</span><span class="chip">'+esc(catName(c.p.cat))+'</span></span></span><span class="row-v num">'+money(c.m,'ARS')+'</span></button>').join('')+'</div></section>';
   }}
+  if(cur==='ARS'&&(mo.fx||[]).length){any=true;
+    h+='<section class="group"><div class="group-h"><h3>Compra de dólares</h3><span class="num">'+money(mo.fx.reduce((t,x)=>t+x.ars,0),'ARS')+'</span></div><div class="gbox">'
+      +mo.fx.map(x=>'<button class="row" data-act="fx-edit" data-id="'+x.id+'"><span class="row-main"><span class="row-t">Compra de dólares</span><span class="row-s"><span class="chip">Recibiste '+money(x.usd,'USD')+'</span><span class="chip">No cuenta como gasto</span></span></span><span class="row-v num muted">'+money(x.ars,'ARS')+'</span></button>').join('')+'</div></section>';
+  }
   for(const cid of order){
     const list=items.filter(e=>e.cat===cid);if(!list.length)continue;any=true;
     const sub=list.reduce((s,e)=>s+e.m,0);
@@ -791,7 +837,7 @@ function vMeses(){
     return'<td class="'+(good?'dn-good':'up-bad')+'">'+(d>0?'▲ ':'▼ ')+money(Math.abs(d),cur)+'</td>';
   };
   const rowOf=(name,fn,upGood,cls)=>'<tr'+(cls?' class="'+cls+'"':'')+'><td>'+name+'</td>'+data.map(x=>'<td>'+money(fn(x.c),cur)+'</td>').join('')+delta(fn(L.c),P?fn(P.c):0,upGood)+'</tr>';
-  let rows=rowOf('Ingresos',c=>c.inc,true,'sum')+rowOf('Sobrante del mes anterior',c=>c.carry,true)+rowOf('Gastos',c=>c.gastos,false,'sum')+rowOf('Ahorro',c=>c.ahorro,true,'sum')+rowOf('Te quedó',c=>c.disp,true,'sum');
+  let rows=rowOf('Ingresos',c=>c.inc,true,'sum')+(data.some(x=>x.c.uso)?rowOf('Del ahorro',c=>c.uso,true):'')+(data.some(x=>x.c.cambio||x.c.compra)?rowOf('Compra de dólares',c=>cur==='ARS'?c.cambio:c.compra,cur==='USD'):'')+rowOf('Sobrante del mes anterior',c=>c.carry,true)+rowOf('Gastos',c=>c.gastos,false,'sum')+rowOf('Ahorro',c=>c.ahorro,true,'sum')+rowOf('Te quedó',c=>c.disp,true,'sum');
   rows+='<tr class="sep"><td colspan="'+(data.length+(two?2:1))+'">Gastos por categoría</td></tr>';
   for(const c of S.cats){
     if(!data.some(x=>x.c.cats[c.id]))continue;
@@ -808,7 +854,7 @@ function render(){
   $('#mesname').textContent=MESES[+mes.slice(5)-1]+' '+mes.slice(0,4);
   renderNav();renderHello();applyLook();
   const v=$('#view');
-  v.innerHTML=({inicio:vInicio,ingresos:vIngresos,gastos:vGastos,vencs:vVencs,meses:vMeses})[tab](mo);
+  v.innerHTML=({inicio:vInicio,ingresos:vIngresos,gastos:vGastos,ahorro:vAhorro,vencs:vVencs,meses:vMeses})[tab](mo);
 }
 
 /* ---------- Hojas y formularios ---------- */
@@ -840,23 +886,24 @@ function clearErr(f){f.querySelectorAll('.err').forEach(p=>{p.hidden=true;p.text
 function addCard(name){const c={id:uid(),n:name};S.cards.push(c);return c.id;}
 const modoOpts=sel=>Object.keys(MODO).map(k=>'<option value="'+k+'"'+(k===sel?' selected':'')+'>'+MODO[k]+'</option>').join('');
 
-/* Gasto */
-function openExp(id){
-  const mo=S.months[mes],e=id?mo.exp.find(x=>x.id===id):null;
-  const d=e||{n:'',m:'',cur:tab==='gastos'?gView:'ARS',cat:(S.cats.find(c=>!c.a)||S.cats[0]||{}).id,pay:'efectivo',card:'',rep:true,venc:'',modo:'manual',prev:''};
+/* Gasto (con opción de cuotas) */
+function openExp(id,planId){
+  const mo=S.months[mes],e=id?mo.exp.find(x=>x.id===id):null,p=planId?S.plans.find(x=>x.id===planId):null;
+  const d=e||(p?{n:p.n,m:p.total,cur:'ARS',cat:p.cat,pay:p.card?'tarjeta':(p.pay||'efectivo'),card:p.card||'',rep:false,venc:'',modo:'manual',prev:''}:{n:'',m:'',cur:tab==='gastos'?gView:'ARS',cat:(S.cats.find(c=>!c.a)||S.cats[0]||{}).id,pay:'efectivo',card:'',rep:true,venc:'',modo:'manual',prev:''});
   const catOpts=S.cats.map(c=>'<option value="'+c.id+'"'+(c.id===d.cat?' selected':'')+'>'+esc(c.n)+'</option>').join('');
   const cardSel=S.cards.length?'<select name="card">'+S.cards.map(c=>'<option value="'+c.id+'"'+(c.id===d.card?' selected':'')+'>'+esc(c.n)+'</option>').join('')+'</select><div style="height:8px"></div>':'';
-  openSheet(e?'Editar gasto':'Nuevo gasto',
-   '<form id="f" data-kind="exp" data-id="'+(e?e.id:'')+'" novalidate>'
+  openSheet(e?'Editar gasto':p?'Editar gasto en cuotas':'Nuevo gasto',
+   '<form id="f" data-kind="exp" data-id="'+(e?e.id:'')+'" data-plan="'+(p?p.id:'')+'" novalidate>'
    +'<label class="fld"><span>Concepto</span><input type="text" name="n" value="'+esc(d.n)+'" maxlength="60" autocomplete="off" placeholder="Ej: Luz, alquiler, supermercado"><p class="err" data-for="n" hidden></p></label>'
    +'<div class="fld"><span>Monto</span><div class="amt"><input type="text" name="m" inputmode="decimal" autocomplete="off" placeholder="0" value="'+(d.m===''?'':fmtIn(d.m))+'">'+segHtml('cur',[['ARS','Pesos'],['USD','Dólares']],d.cur)+'</div><p class="err" data-for="m" hidden></p></div>'
+   +'<label class="fld"><span>Cuotas (opcional)</span><input type="text" name="q" inputmode="numeric" autocomplete="off" placeholder="Vacío si es un solo pago" value="'+(p?p.q:'')+'"><p class="hint">Si es en cuotas, el monto de arriba es el total de la compra. Sin interés: se reparte en partes iguales y aparece solo en cada mes, desde este.</p><p class="err" data-for="q" hidden></p></label>'
    +'<div class="fld"><span>Categoría</span>'+(S.cats.length?'<select name="cat">'+catOpts+'</select><div style="height:8px"></div>':'<input type="hidden" name="cat" value="">')+'<input type="text" name="newcat" maxlength="40" autocomplete="off" placeholder="'+(S.cats.length?'O creá una categoría nueva (ej: Salud)':'Creá una categoría (ej: Salud)')+'"><p class="err" data-for="cat" hidden></p></div>'
    +'<div class="fld"><span>Cómo lo pagás</span>'+segHtml('pay',[['efectivo','Efectivo'],['transferencia','Transferencia'],['deposito','Depósito'],['tarjeta','Tarjeta']],d.pay,'wrap')+'</div>'
    +'<div class="fld" id="cardbox" hidden><span>Tarjeta</span>'+cardSel+'<input type="text" name="newcard" autocomplete="off" placeholder="'+(S.cards.length?'O escribí una tarjeta nueva':'Nombre de la tarjeta (ej: Visa)')+'"><p class="hint">Se muestra en su categoría, pero no se suma de nuevo: ya está dentro del total de la tarjeta.</p><p class="err" data-for="card" hidden></p></div>'
    +'<div id="vencbox"><label class="fld"><span id="venclab">Vencimiento (opcional)</span><input type="date" name="venc" value="'+esc(d.venc)+'">'+(d.prev?'<p class="hint">Mes anterior vencía el '+fmtDate(d.prev)+'.</p>':'')+'<p class="hint" id="remhint" hidden>Es solo un recordatorio de hasta qué fecha pagarlo. No cambia los totales.</p></label>'
    +'<label class="fld" id="modobox"><span>Cómo se paga</span><select name="modo">'+modoOpts(d.modo)+'</select></label></div>'
-   +'<label class="chk"><input type="checkbox" name="rep"'+(d.rep?' checked':'')+'><span>Se repite todos los meses</span></label>'
-   +'<div class="btnrow grow end"><button class="btn primary" type="submit">Guardar</button>'+(e?'<button class="btn danger" type="button" data-act="exp-del" data-id="'+e.id+'">Eliminar</button>':'')+'</div></form>');
+   +'<label class="chk" id="repbox"><input type="checkbox" name="rep"'+(d.rep?' checked':'')+'><span>Se repite todos los meses</span></label>'
+   +'<div class="btnrow grow end"><button class="btn primary" type="submit">Guardar</button>'+(e?'<button class="btn danger" type="button" data-act="exp-del" data-id="'+e.id+'">Eliminar</button>':p?'<button class="btn danger" type="button" data-act="plan-del" data-id="'+p.id+'">Eliminar</button>':'')+'</div></form>');
   syncExp($('#f'));
 }
 function syncExp(f){
@@ -865,25 +912,41 @@ function syncExp(f){
   const tb=f.querySelector('[data-seg="pay"] button[data-v="tarjeta"]');
   tb.disabled=ah;
   if(ah&&el.pay.value==='tarjeta'){el.pay.value='efectivo';f.querySelectorAll('[data-seg="pay"] button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v==='efectivo')));}
-  const t=el.pay.value==='tarjeta';
+  const t=el.pay.value==='tarjeta',cu=parseInt(el.q.value,10)>=2;
   $('#cardbox',f).hidden=!t;$('#modobox',f).hidden=t;$('#remhint',f).hidden=!t;$('#venclab',f).textContent=t?'Recordatorio: pagar antes del (opcional)':'Vencimiento (opcional)';
+  $('#vencbox',f).hidden=cu;$('#repbox',f).hidden=cu;
 }
 function saveExp(f){
   const el=f.elements;clearErr(f);
   const n=el.n.value.trim(),m=parseNum(el.m.value);
   if(!n)return err(f,'n','Escribí el concepto.');
   if(m===null||m<0)return err(f,'m','Escribí un monto válido.');
+  const qs=el.q.value.trim(),q=qs?parseInt(qs,10):1,pid=f.dataset.plan;
+  if(qs&&(!/^\d+$/.test(qs)||q<1||q>60))return err(f,'q','Escribí la cantidad de cuotas (de 2 a 60), o dejalo vacío si es un solo pago.');
+  if(pid&&q<2)return err(f,'q','Una compra en cuotas lleva 2 o más. Para un solo pago, eliminala y cargalo como gasto común.');
+  if(q>=2){
+    if(el.cur.value!=='ARS')return err(f,'q','Las cuotas solo se cargan en pesos.');
+    if(!(m>0))return err(f,'m','Escribí el total de la compra.');
+    if(catIsAhorro(el.cat.value))return err(f,'cat','Un gasto en cuotas no puede ser de ahorro.');
+  }
   const nc=el.newcat.value.trim();
   if(!el.cat.value&&!nc)return err(f,'cat','Elegí una categoría o creá una nueva.');
   const pay=el.pay.value;let card='';
   if(pay==='tarjeta'){
-    const nc=el.newcard.value.trim();
-    card=nc?addCard(nc):(el.card?el.card.value:'');
+    const ncd=el.newcard.value.trim();
+    card=ncd?addCard(ncd):(el.card?el.card.value:'');
     if(!card)return err(f,'card','Elegí una tarjeta o escribí el nombre de una nueva.');
   }
   let cat=el.cat.value;
   if(nc){const ex=S.cats.find(c=>c.n.toLowerCase()===nc.toLowerCase());if(ex)cat=ex.id;else{cat=uid();S.cats.push({id:cat,n:nc,a:false});}}
   const mo=S.months[mes],id=f.dataset.id;
+  if(q>=2){
+    const op=pid?S.plans.find(x=>x.id===pid):null;
+    const pi={id:op?op.id:uid(),n:n,total:m,q:q,card:pay==='tarjeta'?card:'',pay:pay,cat:cat,start:op?op.start:mes};
+    if(op)S.plans[S.plans.indexOf(op)]=pi;else S.plans.push(pi);
+    if(id)mo.exp=mo.exp.filter(x=>x.id!==id);
+    commit();closeSheet();toast('Gasto en cuotas guardado. Aparece solo en cada mes.');return;
+  }
   const old=id?mo.exp.find(x=>x.id===id):null;
   const item={id:old?old.id:uid(),n:n,m:m,cur:el.cur.value,cat:cat,pay:pay,card:card,rep:el.rep.checked,
     venc:el.venc.value,modo:pay==='tarjeta'?'manual':el.modo.value,paid:old?!!old.paid:false,prev:old?old.prev||'':''};
@@ -893,41 +956,26 @@ function saveExp(f){
   commit();closeSheet();toast('Gasto guardado.'+(pr?' También se agregó a los meses siguientes.':''));
 }
 
-/* Compra en cuotas */
-function openPlan(id){
-  const p=id?S.plans.find(x=>x.id===id):null;
-  const d=p||{n:'',total:'',q:'',card:'',cat:'',start:mes};
-  const cats=S.cats.filter(c=>!c.a);
-  const catSel=cats.length?'<select name="cat">'+cats.map(c=>'<option value="'+c.id+'"'+(c.id===d.cat?' selected':'')+'>'+esc(c.n)+'</option>').join('')+'</select><div style="height:8px"></div>':'';
-  const cardSel=S.cards.length?'<select name="card">'+S.cards.map(c=>'<option value="'+c.id+'"'+(c.id===d.card?' selected':'')+'>'+esc(c.n)+'</option>').join('')+'</select><div style="height:8px"></div>':'';
-  openSheet(p?'Editar compra en cuotas':'Compra en cuotas',
-   '<form id="f" data-kind="plan" data-id="'+(p?p.id:'')+'" novalidate>'
-   +'<label class="fld"><span>Qué compraste</span><input type="text" name="n" value="'+esc(d.n)+'" maxlength="60" autocomplete="off" placeholder="Ej: Zapatillas"><p class="err" data-for="n" hidden></p></label>'
-   +'<label class="fld"><span>Total de la compra</span><input type="text" name="m" inputmode="decimal" autocomplete="off" placeholder="0" value="'+(d.total===''?'':fmtIn(d.total))+'"><p class="err" data-for="m" hidden></p></label>'
-   +'<label class="fld"><span>Cantidad de cuotas</span><input type="text" name="q" inputmode="numeric" autocomplete="off" placeholder="Ej: 6" value="'+(d.q===''?'':d.q)+'"><p class="hint">Sin interés: la app divide el total en partes iguales.</p><p class="err" data-for="q" hidden></p></label>'
-   +'<div class="fld"><span>Tarjeta</span>'+cardSel+'<input type="text" name="newcard" autocomplete="off" placeholder="'+(S.cards.length?'O escribí una tarjeta nueva':'Nombre de la tarjeta (ej: Visa)')+'"><p class="err" data-for="card" hidden></p></div>'
-   +'<div class="fld"><span>Categoría</span>'+catSel+'<input type="text" name="newcat" maxlength="40" autocomplete="off" placeholder="'+(cats.length?'O creá una categoría nueva (ej: Ropa)':'Creá una categoría (ej: Ropa)')+'"><p class="err" data-for="cat" hidden></p></div>'
-   +'<label class="fld"><span>Primera cuota en el mes de</span><input type="month" name="start" value="'+esc(d.start)+'"><p class="hint">Es el mes en que cae la primera cuota en el resumen de la tarjeta.</p><p class="err" data-for="start" hidden></p></label>'
-   +'<div class="btnrow grow end"><button class="btn primary" type="submit">Guardar</button>'+(p?'<button class="btn danger" type="button" data-act="plan-del" data-id="'+p.id+'">Eliminar</button>':'')+'</div></form>');
+/* Compra de dólares: salen pesos (no cuentan como gasto) y entran dólares */
+function openFx(id){
+  const mo=S.months[mes],x=id?(mo.fx||[]).find(y=>y.id===id):null;
+  openSheet(x?'Editar compra de dólares':'Compra de dólares',
+   '<form id="f" data-kind="fx" data-id="'+(x?x.id:'')+'" novalidate>'
+   +'<p class="hint" style="margin:0 0 12px">Los pesos salen de lo que te queda este mes y los dólares entran a tu plata en dólares. Los pesos no cuentan como gasto.</p>'
+   +'<label class="fld"><span>Pesos que pagaste</span><input type="text" name="ars" inputmode="decimal" autocomplete="off" placeholder="0" value="'+(x?fmtIn(x.ars):'')+'"><p class="err" data-for="ars" hidden></p></label>'
+   +'<label class="fld"><span>Dólares que recibiste</span><input type="text" name="usd" inputmode="decimal" autocomplete="off" placeholder="0" value="'+(x?fmtIn(x.usd):'')+'"><p class="err" data-for="usd" hidden></p></label>'
+   +'<div class="btnrow grow end"><button class="btn primary" type="submit">Guardar</button>'+(x?'<button class="btn danger" type="button" data-act="fx-del" data-id="'+x.id+'">Eliminar</button>':'')+'</div></form>');
 }
-function savePlan(f){
+function saveFx(f){
   const el=f.elements;clearErr(f);
-  const n=el.n.value.trim(),m=parseNum(el.m.value),qs=el.q.value.trim(),q=parseInt(qs,10),start=el.start.value;
-  if(!n)return err(f,'n','Escribí qué compraste.');
-  if(m===null||m<=0)return err(f,'m','Escribí el total de la compra.');
-  if(!/^\d+$/.test(qs)||q<2||q>60)return err(f,'q','Escribí la cantidad de cuotas, de 2 a 60.');
-  const ncard=el.newcard.value.trim(),ncat=el.newcat.value.trim();
-  if(!ncard&&!(el.card&&el.card.value))return err(f,'card','Elegí una tarjeta o escribí el nombre de una nueva.');
-  if(!ncat&&!(el.cat&&el.cat.value))return err(f,'cat','Elegí una categoría o creá una nueva.');
-  if(!/^\d{4}-\d{2}$/.test(start))return err(f,'start','Elegí el mes de la primera cuota.');
-  let card=el.card?el.card.value:'';
-  if(ncard){const ex=S.cards.find(c=>c.n.toLowerCase()===ncard.toLowerCase());card=ex?ex.id:addCard(ncard);}
-  let cat=el.cat?el.cat.value:'';
-  if(ncat){const ex=S.cats.find(c=>c.n.toLowerCase()===ncat.toLowerCase());if(ex)cat=ex.id;else{cat=uid();S.cats.push({id:cat,n:ncat,a:false});}}
-  const id=f.dataset.id,old=id?S.plans.find(x=>x.id===id):null;
-  const item={id:old?old.id:uid(),n:n,total:m,q:q,card:card,cat:cat,start:start};
-  if(old)S.plans[S.plans.indexOf(old)]=item;else S.plans.push(item);
-  commit();closeSheet();toast('Compra en cuotas guardada. Aparece sola en cada mes.');
+  const ars=parseNum(el.ars.value),usd=parseNum(el.usd.value);
+  if(ars===null||!(ars>0))return err(f,'ars','Escribí cuántos pesos pagaste.');
+  if(usd===null||!(usd>0))return err(f,'usd','Escribí cuántos dólares recibiste.');
+  const mo=S.months[mes];if(!mo.fx)mo.fx=[];
+  const id=f.dataset.id,old=id?mo.fx.find(y=>y.id===id):null;
+  const item={id:old?old.id:uid(),ars:ars,usd:usd};
+  if(old)mo.fx[mo.fx.indexOf(old)]=item;else mo.fx.push(item);
+  commit();closeSheet();toast('Compra de dólares guardada.');
 }
 
 /* Ingreso */
@@ -1097,12 +1145,13 @@ function importMonths(d,keys){
   }
   /* las compras en cuotas que tocan los meses importados viajan con ellos */
   (Array.isArray(d.plans)?d.plans:[]).forEach(p=>{
-    if(!p||!/^\d{4}-\d{2}$/.test(p.start||'')||!(p.q>=1)||!d.cards.some(x=>x.id===p.card))return;
+    if(!p||!/^\d{4}-\d{2}$/.test(p.start||'')||!(p.q>=1)||(p.card&&!d.cards.some(x=>x.id===p.card)))return;
     if(!keys.some(k=>{const i=monthDiff(p.start,k);return i>=0&&i<p.q;}))return;
-    const card=mapCard(p.card),cat=mapCat(p.cat);
+    const card=p.card?mapCard(p.card):'',cat=mapCat(p.cat);
     if(S.plans.some(x=>x.n===p.n&&x.total===p.total&&x.q===p.q&&x.start===p.start&&x.card===card))return;
-    S.plans.push({id:uid(),n:p.n,total:p.total,q:p.q,card:card,cat:cat,start:p.start});
+    S.plans.push({id:uid(),n:p.n,total:p.total,q:p.q,card:card,cat:cat,pay:p.pay||'',start:p.start});
   });
+  S.ahorro=S.ahorro.filter(x=>keys.indexOf(x.k)<0);(Array.isArray(d.ahorro)?d.ahorro:[]).forEach(x=>{if(keys.indexOf(x.k)>=0)S.ahorro.push(Object.assign({},x,{id:uid()}));});
   save();return n;
 }
 
@@ -1127,7 +1176,20 @@ const H={
   ajustes:()=>openSettings(),
   mode:b=>{S.mode=b.dataset.v;save();render();b.parentElement.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===b)));},
   goto:b=>{mes=b.dataset.k;render();window.scrollTo(0,0);},
-  'ahorro-new':()=>openAhorro(),
+  'ahorro-new':()=>openAhorroForm('aporte'),
+  'ahorro-ini':()=>openAhorroForm('ini'),
+  'ahorro-uso':()=>openAhorroForm('uso'),
+  'sav-edit':b=>{const x=S.ahorro.find(y=>y.id===b.dataset.id);if(x)openAhorroForm(x.t,x.id);},
+  'sav-del':b=>{
+    if(!arm(b,'Confirmar: eliminar'))return;
+    const id=b.dataset.id,x=S.ahorro.find(y=>y.id===id);
+    S.ahorro=S.ahorro.filter(y=>y.id!==id);
+    if(x&&x.t==='ini'&&ahorroSaldo('9999-99')<-0.005){S.ahorro.push(x);toast('Esa plata ya se usó. Borrá primero el uso del ahorro.');return;}
+    commit();closeSheet();toast('Eliminado.');
+  },
+  'fx-new':()=>openFx(),
+  'fx-edit':b=>openFx(b.dataset.id),
+  'fx-del':b=>{if(!arm(b,'Confirmar: eliminar'))return;const mo=S.months[mes];mo.fx=(mo.fx||[]).filter(x=>x.id!==b.dataset.id);commit();closeSheet();toast('Compra de dólares eliminada.');},
   traer:()=>{
     const mo=S.months[mes],f=faltantes(mo);if(!f)return;
     f.inc.forEach(i=>mo.inc.push(Object.assign({},i,{id:uid()})));
@@ -1155,8 +1217,7 @@ const H={
   'inc-new':()=>openInc(),
   'inc-edit':b=>openInc(b.dataset.id),
   'inc-del':b=>{if(!arm(b,'Confirmar: eliminar'))return;const mo=S.months[mes];mo.inc=mo.inc.filter(x=>x.id!==b.dataset.id);commit();closeSheet();toast('Ingreso eliminado.');},
-  'plan-new':()=>openPlan(),
-  'plan-edit':b=>openPlan(b.dataset.id),
+  'plan-edit':b=>openExp(null,b.dataset.id),
   'plan-del':b=>{if(!arm(b,'Confirmar: eliminar'))return;S.plans=S.plans.filter(x=>x.id!==b.dataset.id);commit();closeSheet();toast('Compra en cuotas eliminada.');},
   'card-new':()=>openCard(),
   'card-edit':b=>openCard(b.dataset.id),
@@ -1248,7 +1309,7 @@ document.addEventListener('submit',e=>{
   const f=e.target;
   if(f.dataset.kind==='exp')saveExp(f);
   else if(f.dataset.kind==='inc')saveInc(f);
-  else if(f.dataset.kind==='plan')savePlan(f);
+  else if(f.dataset.kind==='fx')saveFx(f);
   else if(f.dataset.kind==='card')saveCard(f);
   else if(f.dataset.kind==='name')saveName(f);
   else if(f.dataset.kind==='ahorro')saveAhorro(f);
@@ -1265,6 +1326,7 @@ document.addEventListener('change',e=>{
     const r=new FileReader();r.onload=()=>stageImport(String(r.result));r.onerror=()=>toast('No se pudo leer el archivo.');r.readAsText(t.files[0]);
   }
 });
+document.addEventListener('input',e=>{const t=e.target;if(t.form&&t.form.dataset.kind==='exp'&&t.name==='q')syncExp(t.form);});
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'&&!$('#sheet').hidden){closeSheet();return;}
   if(e.key!=='Enter')return;
